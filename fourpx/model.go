@@ -1,6 +1,9 @@
 package fourpx
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 // Person is a sender / recipient address block.
 type Person struct {
@@ -98,6 +101,66 @@ type OrderCreateData struct {
 	ODAResultSign        string `json:"oda_result_sign,omitempty"`
 }
 
+// OrderGetRequest is the body for ds.xms.order.get.
+// Provide request_no for a single lookup, or a create-time window (max 7 days).
+type OrderGetRequest struct {
+	RequestNo                    string `json:"request_no,omitempty"`
+	StartTimeOfCreateConsignment *int64 `json:"start_time_of_create_consignment,omitempty"` // unix ms
+	EndTimeOfCreateConsignment   *int64 `json:"end_time_of_create_consignment,omitempty"`   // unix ms
+	ConsignmentStatus            string `json:"consignment_status,omitempty"`               // P/V/H/C/F/R/X/ALL
+}
+
+// ConsignmentInfo is consignment_info from ds.xms.order.get.
+type ConsignmentInfo struct {
+	DSConsignmentNo       string `json:"ds_consignment_no,omitempty"`
+	TrackingNo4PX         string `json:"4px_tracking_no,omitempty"`
+	RefNo                 string `json:"ref_no,omitempty"`
+	GetNoMode             string `json:"get_no_mode,omitempty"` // C|U
+	LogisticsChannelNo    string `json:"logistics_channel_no,omitempty"`
+	GetNoExMsg            string `json:"get_no_exmsg,omitempty"`
+	LogisticsProductCode  string `json:"logistics_product_code,omitempty"`
+	LogisticsProductName  string `json:"logistics_product_name,omitempty"`
+	ConsignmentStatus     string `json:"consignment_status,omitempty"`
+	InsureStatus          string `json:"insure_status,omitempty"`
+	InsureType            string `json:"insure_type,omitempty"`
+	HasCheckODA           string `json:"has_check_oda,omitempty"`
+	ODAResultSign         string `json:"oda_result_sign,omitempty"`
+	IsHoldSign            string `json:"is_hold_sign,omitempty"`
+	ConsignmentCreateDate int64  `json:"consignment_create_date,omitempty"` // unix ms
+	InboundDate4PX        int64  `json:"4px_inbound_date,omitempty"`        // unix ms
+	OutboundDate4PX       int64  `json:"4px_outbound_date,omitempty"`       // unix ms
+}
+
+// ParcelConfirmInfo is parcel_confirm_info from ds.xms.order.get.
+type ParcelConfirmInfo struct {
+	ConfirmParcelQty          string              `json:"confirm_parcel_qty,omitempty"`
+	ConfirmParcelWeight       float64             `json:"confirm_parcel_weight,omitempty"`
+	ConfirmParcelVolumeWeight float64             `json:"confirm_parcel_volume_weight,omitempty"`
+	ConfirmParcelChargeWeight float64             `json:"confirm_parcel_charge_weight,omitempty"`
+	ParcelListConfirmInfo     []ParcelConfirmItem `json:"parcel_list_confirm_info,omitempty"`
+}
+
+// ParcelConfirmItem is one row in parcel_list_confirm_info.
+type ParcelConfirmItem struct {
+	ConfirmWeight           float64 `json:"confirm_weight,omitempty"`
+	ConfirmVolumeWeight     float64 `json:"confirm_volume_weight,omitempty"`
+	ConfirmLength           float64 `json:"confirm_length,omitempty"` // mm
+	ConfirmWidth            float64 `json:"confirm_width,omitempty"`  // mm
+	ConfirmHigh             float64 `json:"confirm_high,omitempty"`   // mm
+	ConfirmChargeWeight     float64 `json:"confirm_charge_weight,omitempty"`
+	ConfirmIncludeBattery   string  `json:"confirm_include_battery,omitempty"`
+	ConfirmBatteryType      string  `json:"confirm_battery_type,omitempty"`
+	ParcelTotalValueConfirm float64 `json:"parcel_total_value_confirm,omitempty"`
+	CurrencyCode            string  `json:"currency_code,omitempty"`
+}
+
+// OrderGetItem is one element of the data array from ds.xms.order.get.
+type OrderGetItem struct {
+	ConsignmentInfo       *ConsignmentInfo    `json:"consignment_info,omitempty"`
+	ParcelConfirmInfo     *ParcelConfirmInfo  `json:"parcel_confirm_info,omitempty"`
+	ParcelListConfirmInfo []ParcelConfirmItem `json:"parcel_list_confirm_info,omitempty"`
+}
+
 // OrderCancelRequest is the body for ds.xms.order.cancel.
 type OrderCancelRequest struct {
 	RequestNo    string `json:"request_no"`
@@ -157,12 +220,44 @@ type EstimatedCostItem struct {
 	RefNo                string  `json:"ref_no,omitempty"`
 	LogisticsChannelNo   string  `json:"logistics_channel_no,omitempty"`
 	LogisticsProductCode string  `json:"logistics_product_code,omitempty"`
-	LumpSumFee           float64 `json:"lump_sum_fee,omitempty"` // CNY
+	LumpSumFee           float64 `json:"lump_sum_fee,omitempty"` // CNY; API may send number or string
 	IsVolumeCargo        string  `json:"is_volume_cargo,omitempty"`
 	ChargeWeight         string  `json:"charge_weight,omitempty"`
 	EstimatedTime        string  `json:"estimated_time,omitempty"`
 	IsShowTrack          string  `json:"is_show_track,omitempty"`
 	Remarks              string  `json:"remarks,omitempty"`
+}
+
+// UnmarshalJSON accepts lump_sum_fee as either a JSON number or numeric string
+// (test env returns strings inside a stringified data payload).
+func (e *EstimatedCostItem) UnmarshalJSON(b []byte) error {
+	type alias EstimatedCostItem
+	aux := struct {
+		LumpSumFee json.RawMessage `json:"lump_sum_fee"`
+		*alias
+	}{alias: (*alias)(e)}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	if len(aux.LumpSumFee) == 0 || string(aux.LumpSumFee) == "null" {
+		return nil
+	}
+	if aux.LumpSumFee[0] == '"' {
+		var s string
+		if err := json.Unmarshal(aux.LumpSumFee, &s); err != nil {
+			return err
+		}
+		if s == "" {
+			return nil
+		}
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return err
+		}
+		e.LumpSumFee = v
+		return nil
+	}
+	return json.Unmarshal(aux.LumpSumFee, &e.LumpSumFee)
 }
 
 // LogisticsProductGetListRequest is the body for ds.xms.logistics_product.getlist.

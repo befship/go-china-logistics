@@ -13,7 +13,7 @@ International carriers (UPS / DHL / FedEx) ship OAS-generated SDKs. Domestic for
 | Path | Purpose |
 |------|---------|
 | `methodrpc/` | Shared client: sign hook, retries, POST + query routing, errors |
-| `fourpx/` | 4PX signer, models, typed methods (create / cancel / label / rate / track) |
+| `fourpx/` | 4PX signer, models, typed methods (create / get / cancel / label / rate / track) |
 | `yanwen/` | Yanwen signer, models, typed methods (+ separate track host) |
 | `examples/` | Minimal runnable samples |
 
@@ -63,6 +63,7 @@ func main() {
 | Method | API |
 |--------|-----|
 | `CreateOrder` | `ds.xms.order.create` |
+| `GetOrder` | `ds.xms.order.get` |
 | `CancelOrder` | `ds.xms.order.cancel` |
 | `GetLabel` | `ds.xms.label.get` |
 | `EstimatedCost` | `ds.xms.estimated_cost.get` |

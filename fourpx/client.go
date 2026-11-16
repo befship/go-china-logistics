@@ -21,7 +21,7 @@ import (
 type Config struct {
 	AppKey      string
 	AppSecret   string
-	Environment string // sandbox|test|production; default sandbox
+	Environment string // test|production; default test
 
 	HTTPClient *http.Client
 	Timeout    time.Duration
@@ -63,24 +63,17 @@ func Endpoint(env string) string {
 
 // BaseURL returns the API host for env (without path).
 func BaseURL(env string) string {
-	switch normalizeEnv(env) {
-	case EnvProduction:
+	if normalizeEnv(env) == EnvProduction {
 		return "https://open.4px.com"
-	case EnvSandbox:
-		// Legacy host; official docs now list open-test.4px.com
-		return "https://open.sandbox.4px.com"
-	default:
-		return "https://open-test.4px.com"
 	}
+	return "https://open-test.4px.com"
 }
 
 func normalizeEnv(env string) string {
 	switch strings.ToLower(strings.TrimSpace(env)) {
 	case EnvProduction, "prod":
 		return EnvProduction
-	case EnvSandbox:
-		return EnvSandbox
-	case "", EnvTest, "fat", "dev":
+	case "", EnvTest, "fat", "dev", "sandbox":
 		return EnvTest
 	default:
 		return strings.ToLower(strings.TrimSpace(env))
@@ -142,12 +135,25 @@ func businessError(method string, env *Response, raw []byte) error {
 }
 
 // decodeData unmarshals envelope.Data into dest.
+// Some 4PX APIs (e.g. estimated_cost.get) return data as a JSON string that
+// itself contains JSON; unwrap that once before decoding into dest.
 func decodeData(env *Response, dest any) error {
 	if dest == nil || len(env.Data) == 0 || string(env.Data) == "null" {
 		return nil
 	}
-	if err := json.Unmarshal(env.Data, dest); err != nil {
-		return &methodrpc.Error{Platform: "4px", Message: "decode data", Err: err, Body: methodrpc.Truncate(string(env.Data), 400)}
+	raw := env.Data
+	if raw[0] == '"' {
+		var s string
+		if err := json.Unmarshal(raw, &s); err != nil {
+			return &methodrpc.Error{Platform: "4px", Message: "decode data string", Err: err, Body: methodrpc.Truncate(string(raw), 400)}
+		}
+		if s == "" || s == "null" {
+			return nil
+		}
+		raw = json.RawMessage(s)
+	}
+	if err := json.Unmarshal(raw, dest); err != nil {
+		return &methodrpc.Error{Platform: "4px", Message: "decode data", Err: err, Body: methodrpc.Truncate(string(raw), 400)}
 	}
 	return nil
 }

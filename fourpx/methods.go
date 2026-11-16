@@ -15,6 +15,20 @@ func (c *Client) CreateOrder(ctx context.Context, req *OrderCreateRequest) (*Ord
 	return &data, nil
 }
 
+// GetOrder queries direct-shipping consignments (ds.xms.order.get).
+// Query by request_no (4PX / DS / ref no) or by create-time window + status.
+func (c *Client) GetOrder(ctx context.Context, req *OrderGetRequest) ([]OrderGetItem, error) {
+	env, err := c.Call(ctx, MethodOrderGet, req)
+	if err != nil {
+		return nil, err
+	}
+	var items []OrderGetItem
+	if err := decodeData(env, &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 // CancelOrder cancels a consignment (ds.xms.order.cancel).
 func (c *Client) CancelOrder(ctx context.Context, req *OrderCancelRequest) error {
 	_, err := c.Call(ctx, MethodOrderCancel, req)
