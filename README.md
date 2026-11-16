@@ -113,6 +113,7 @@ func main() {
 | `CancelOrder` | `express.order.cancel` |
 | `GetLabel` | `express.order.label.get` |
 | `GetOrders` | `express.order.getlist` |
+| `GetChannels` | `express.channel.getlist` |
 | `CalcList` | `calc.list` |
 | `VerifyUSAddress` | `common.verify.us.address` |
 | `Track` | `GET api.track.yw56.com.cn/api/tracking` |

@@ -15,6 +15,7 @@ const (
 	MethodOrderCancel     = "express.order.cancel"
 	MethodOrderLabelGet   = "express.order.label.get"
 	MethodOrderGetList    = "express.order.getlist"
+	MethodChannelGetList  = "express.channel.getlist"
 	MethodCalcList        = "calc.list"
 	MethodVerifyUSAddress = "common.verify.us.address"
 )

@@ -11,8 +11,10 @@ func TestCheckSuccess(t *testing.T) {
 		{"success true", `{"success":true,"code":"0","message":"ok"}`, false},
 		{"success true code 200", `{"success":true,"code":"200"}`, false},
 		{"success false", `{"success":false,"code":"1001","message":"fail"}`, true},
+		{"success false numeric code", `{"success":false,"code":500,"message":"sign error"}`, true},
 		{"no success code ok", `{"code":"0"}`, false},
 		{"no success code bad", `{"code":"500","message":"x"}`, true},
+		{"no success numeric code bad", `{"code":500,"message":"x"}`, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -47,6 +47,20 @@ func (c *Client) GetOrders(ctx context.Context, numbers []string) ([]OrderDetail
 	return items, nil
 }
 
+// GetChannels lists activated products / channels (express.channel.getlist).
+// Body is empty; use returned Channel.ID as OrderCreateRequest.ChannelID.
+func (c *Client) GetChannels(ctx context.Context) ([]Channel, error) {
+	env, err := c.Call(ctx, MethodChannelGetList, nil)
+	if err != nil {
+		return nil, err
+	}
+	var items []Channel
+	if err := decodeData(env, &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 // CalcList runs freight calculation (calc.list). Requires sales activation.
 func (c *Client) CalcList(ctx context.Context, req *CalcListRequest) ([]CalcListItem, error) {
 	env, err := c.Call(ctx, MethodCalcList, req)

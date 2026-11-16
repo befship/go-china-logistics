@@ -1,6 +1,31 @@
 package yanwen
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
+
+// softString unmarshals a JSON string or number into a Go string.
+// Yanwen docs show code as string ("0"), but error bodies often use a number (500).
+type softString string
+
+func (s *softString) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 || bytes.Equal(b, []byte("null")) {
+		*s = ""
+		return nil
+	}
+	if b[0] == '"' {
+		var v string
+		if err := json.Unmarshal(b, &v); err != nil {
+			return err
+		}
+		*s = softString(v)
+		return nil
+	}
+	*s = softString(b)
+	return nil
+}
 
 // AddressInfo is a sender / receiver address block.
 type AddressInfo struct {
@@ -98,6 +123,13 @@ type LabelGetData struct {
 	Base64String  string `json:"base64String,omitempty"`
 }
 
+// Channel is one activated product from express.channel.getlist.
+type Channel struct {
+	ID     string `json:"id"`
+	NameCh string `json:"nameCh,omitempty"`
+	NameEn string `json:"nameEn,omitempty"`
+}
+
 // OrderGetListRequest is the body for express.order.getlist.
 type OrderGetListRequest struct {
 	ListNumber []string `json:"listNumber"`
@@ -186,6 +218,24 @@ type Response struct {
 	Code    string          `json:"code"`
 	Message string          `json:"message"`
 	Data    json.RawMessage `json:"data"`
+}
+
+// UnmarshalJSON accepts code as either a JSON string or number.
+func (r *Response) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Success bool            `json:"success"`
+		Code    softString      `json:"code"`
+		Message string          `json:"message"`
+		Data    json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	r.Success = raw.Success
+	r.Code = string(raw.Code)
+	r.Message = raw.Message
+	r.Data = raw.Data
+	return nil
 }
 
 // TrackingResponse is the public tracking API payload.

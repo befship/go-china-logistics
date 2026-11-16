@@ -111,13 +111,14 @@ func (c *Client) Call(ctx context.Context, method string, req any) (*Response, e
 // when success is omitted, non-ok codes fail.
 func checkSuccess(method string, raw []byte, env *Response) error {
 	var probe struct {
-		Success *bool  `json:"success"`
-		Code    string `json:"code"`
-		Message string `json:"message"`
+		Success *bool      `json:"success"`
+		Code    softString `json:"code"`
+		Message string     `json:"message"`
 	}
 	_ = json.Unmarshal(raw, &probe)
 
-	codeOK := probe.Code == "" || probe.Code == "0" || probe.Code == "200"
+	code := string(probe.Code)
+	codeOK := code == "" || code == "0" || code == "200"
 	if probe.Success != nil && !*probe.Success {
 		return businessError(method, env, raw)
 	}
